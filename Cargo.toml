@@ -1,0 +1,16 @@
+[package]
+name = "manifolds-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Andres Mejia <andresnayeem@gmail.com>"]
+description = "Core Riemannian manifolds library"
+license = "Apache-2.0"
+
+[dependencies]
+ndarray = "0.16"
+ndarray-linalg = { version = "0.17", features = ["openblas-static"] }
+num-traits = "0.2"
+thiserror = "1.0"
+
+[dev-dependencies]
+approx = "0.5"
