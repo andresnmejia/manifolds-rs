@@ -1,4 +1,4 @@
-use ndarray::Array2;
+use ndarray::{Array1, Array2};
 use ndarray_linalg::{Norm, QR, SVD};
 
 use crate::core::{EmbeddedManifold, Error, Manifold, Result};
@@ -195,10 +195,9 @@ impl Manifold for Stiefel {
         Ok(())
     }
 }
-
 impl EmbeddedManifold for Stiefel {
     fn ambient_dim(&self) -> usize {
-        self.n * self.p
+        self.n * self.p // n×p matrix has np components
     }
 
     fn dim(&self) -> usize {
@@ -208,6 +207,76 @@ impl EmbeddedManifold for Stiefel {
 
     fn is_on_manifold(&self, x: &Self::Point, tolerance: f64) -> bool {
         self.has_orthonormal_columns(x, tolerance)
+    }
+
+    /// Convert n×p matrix to vector in R^(np) using column-major order
+    fn to_ambient(&self, p: &Array2<f64>) -> Result<Array1<f64>> {
+        let mut v = Array1::zeros(self.n * self.p);
+        for col in 0..self.p {
+            for row in 0..self.n {
+                v[col * self.n + row] = p[[row, col]];
+            }
+        }
+        Ok(v)
+    }
+
+    /// For Stiefel: Point = Vector = Array2<f64>, so this is identical to to_ambient
+    fn vector_to_ambient(&self, v: &Array2<f64>) -> Result<Array1<f64>> {
+        self.to_ambient(v)
+    }
+
+    /// Convert vector in R^(np) back to n×p matrix, then project to manifold
+    fn from_ambient(&self, x: &Array1<f64>) -> Result<Array2<f64>> {
+        if x.len() != self.n * self.p {
+            return Err(Error::DimensionMismatch {
+                expected: self.n * self.p,
+                got: x.len(),
+            });
+        }
+
+        // Reshape from vector to matrix (column-major order)
+        let mut p = Array2::zeros((self.n, self.p));
+        for col in 0..self.p {
+            for row in 0..self.n {
+                p[[row, col]] = x[col * self.n + row];
+            }
+        }
+
+        // Project onto manifold to ensure orthonormality
+        self.project(&p)
+    }
+
+    /// Project ambient vector to tangent space
+    /// For Stiefel: Point = Vector = Array2<f64>, so we can safely convert
+    fn project_to_ambient_tangent(&self, p: &Array2<f64>, v: &Array1<f64>) -> Result<Array1<f64>> {
+        // Reshape to matrix
+        let mut v_mat = Array2::zeros((self.n, self.p));
+        for col in 0..self.p {
+            for row in 0..self.n {
+                v_mat[[row, col]] = v[col * self.n + row];
+            }
+        }
+
+        // Project to tangent space (Point = Vector for Stiefel)
+        let v_tan = self.project_tangent(p, &v_mat)?;
+
+        // Convert back to ambient
+        self.vector_to_ambient(&v_tan)
+    }
+
+    /// Exponential map from ambient coordinates
+    /// For Stiefel: Point = Vector = Array2<f64>, so we can safely convert
+    fn exp_from_ambient(&self, p: &Array2<f64>, v: &Array1<f64>) -> Result<Array2<f64>> {
+        // Reshape to matrix
+        let mut v_mat = Array2::zeros((self.n, self.p));
+        for col in 0..self.p {
+            for row in 0..self.n {
+                v_mat[[row, col]] = v[col * self.n + row];
+            }
+        }
+
+        // Use exponential map (Point = Vector for Stiefel)
+        self.exp(p, &v_mat)
     }
 }
 

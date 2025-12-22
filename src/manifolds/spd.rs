@@ -7,10 +7,15 @@ use crate::core::{EmbeddedManifold, Error, Manifold, Result};
 /// Manifold of Symmetric Positive Definite (SPD) matrices
 /// with the affine-invariant Riemannian metric
 ///
+/// SPD(n) = {P ∈ R^{n×n} : P = P^T, P ≻ 0}
+///
 /// This is the natural manifold for:
 /// - Covariance matrices
 /// - Fisher Information Matrices
 /// - Precision matrices
+///
+/// The affine-invariant metric makes it invariant under congruence transformations:
+/// if P is SPD, then so is A^T P A for any invertible A.
 pub struct SPD {
     /// Dimension of the matrices (n x n)
     dim: usize,
@@ -19,6 +24,10 @@ pub struct SPD {
 impl SPD {
     pub fn new(dim: usize) -> Self {
         SPD { dim }
+    }
+
+    pub fn dim(&self) -> usize {
+        self.dim
     }
 
     /// Check if matrix is symmetric positive definite
@@ -174,6 +183,13 @@ impl Manifold for SPD {
         Ok(result)
     }
 
+    /// Project onto tangent space (symmetric matrices)
+    /// T_P SPD(n) = Sym(n) = {X ∈ R^{n×n} : X = X^T}
+    fn project_tangent(&self, _p: &Self::Point, x: &Self::Vector) -> Result<Self::Vector> {
+        // Symmetrize
+        Ok(0.5 * (x + &x.t()))
+    }
+
     fn validate_point(&self, p: &Self::Point) -> Result<()> {
         if !self.is_spd(p, 1e-10) {
             return Err(Error::NotOnManifold(
@@ -200,16 +216,120 @@ impl Manifold for SPD {
 
 impl EmbeddedManifold for SPD {
     fn ambient_dim(&self) -> usize {
-        self.dim * self.dim
+        // SPD(n) embedded in R^{n×n}
+        // But we only store upper triangle since symmetric
+        self.dim * (self.dim + 1) / 2
     }
 
     fn dim(&self) -> usize {
-        // SPD(n) has dimension n(n+1)/2
+        // Intrinsic dimension = n(n+1)/2
         self.dim * (self.dim + 1) / 2
     }
 
     fn is_on_manifold(&self, p: &Self::Point, tolerance: f64) -> bool {
         self.is_spd(p, tolerance)
+    }
+
+    /// Convert SPD matrix to ambient coordinates (vectorized upper triangle)
+    ///
+    /// We vectorize only the upper triangle (including diagonal) since symmetric:
+    /// For n=3: [P₁₁, P₁₂, P₁₃, P₂₂, P₂₃, P₃₃] ∈ R^6
+    fn to_ambient(&self, p: &Self::Point) -> Result<ndarray::Array1<f64>> {
+        let mut v = ndarray::Array1::zeros(self.dim * (self.dim + 1) / 2);
+        let mut idx = 0;
+
+        for i in 0..self.dim {
+            for j in i..self.dim {
+                v[idx] = p[[i, j]];
+                idx += 1;
+            }
+        }
+
+        Ok(v)
+    }
+
+    /// Convert tangent vector (symmetric matrix) to ambient coordinates
+    /// Same as to_ambient for SPD since Point = Vector = Array2<f64>
+    fn vector_to_ambient(&self, v: &Self::Vector) -> Result<ndarray::Array1<f64>> {
+        self.to_ambient(v)
+    }
+
+    /// Convert ambient coordinates to SPD matrix
+    ///
+    /// Reconstructs symmetric matrix from upper triangle, then projects to SPD
+    fn from_ambient(&self, x: &ndarray::Array1<f64>) -> Result<Self::Point> {
+        if x.len() != self.dim * (self.dim + 1) / 2 {
+            return Err(Error::DimensionMismatch {
+                expected: self.dim * (self.dim + 1) / 2,
+                got: x.len(),
+            });
+        }
+
+        // Reconstruct symmetric matrix from upper triangle
+        let mut p = Array2::zeros((self.dim, self.dim));
+        let mut idx = 0;
+
+        for i in 0..self.dim {
+            for j in i..self.dim {
+                p[[i, j]] = x[idx];
+                if i != j {
+                    p[[j, i]] = x[idx]; // Symmetry
+                }
+                idx += 1;
+            }
+        }
+
+        // Project to ensure positive definiteness
+        self.project(&p)
+    }
+
+    /// Project ambient vector onto tangent space at P
+    ///
+    /// For SPD: tangent space is symmetric matrices, so we symmetrize
+    fn project_to_ambient_tangent(
+        &self,
+        p: &Self::Point,
+        v: &ndarray::Array1<f64>,
+    ) -> Result<ndarray::Array1<f64>> {
+        // Reconstruct matrix from vector
+        let mut v_mat = Array2::zeros((self.dim, self.dim));
+        let mut idx = 0;
+
+        for i in 0..self.dim {
+            for j in i..self.dim {
+                v_mat[[i, j]] = v[idx];
+                if i != j {
+                    v_mat[[j, i]] = v[idx];
+                }
+                idx += 1;
+            }
+        }
+
+        // Project to tangent space (symmetrize)
+        let v_tan = self.project_tangent(p, &v_mat)?;
+
+        // Convert back to ambient
+        self.vector_to_ambient(&v_tan)
+    }
+
+    /// Exponential map from ambient tangent vector
+    fn exp_from_ambient(&self, p: &Self::Point, v: &ndarray::Array1<f64>) -> Result<Self::Point> {
+        // Reconstruct matrix from vector
+        let mut v_mat = Array2::zeros((self.dim, self.dim));
+        let mut idx = 0;
+
+        for i in 0..self.dim {
+            for j in i..self.dim {
+                v_mat[[i, j]] = v[idx];
+                if i != j {
+                    v_mat[[j, i]] = v[idx];
+                }
+                idx += 1;
+            }
+        }
+
+        // Use exponential map
+        self.exp(p, &v_mat)
     }
 }
 
@@ -245,5 +365,46 @@ mod tests {
         let gyx = spd.metric(&p, &y, &x);
 
         assert_relative_eq!(gxy, gyx, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_spd_to_from_ambient() {
+        let spd = SPD::new(2);
+        let p = Array2::from_shape_vec((2, 2), vec![4.0, 1.0, 1.0, 3.0]).unwrap();
+
+        // to_ambient and back
+        let v = spd.to_ambient(&p).unwrap();
+        assert_eq!(v.len(), 3); // Upper triangle: [P₁₁, P₁₂, P₂₂]
+
+        let p_recovered = spd.from_ambient(&v).unwrap();
+
+        for i in 0..2 {
+            for j in 0..2 {
+                assert_relative_eq!(p[[i, j]], p_recovered[[i, j]], epsilon = 1e-10);
+            }
+        }
+    }
+
+    #[test]
+    fn test_spd_ambient_dimension() {
+        let spd = SPD::new(3);
+        assert_eq!(spd.ambient_dim(), 6); // n(n+1)/2 = 3*4/2 = 6
+        assert_eq!(spd.dim(), 6); // Same for SPD
+    }
+
+    #[test]
+    fn test_spd_project_tangent() {
+        let spd = SPD::new(2);
+        let p = Array2::from_shape_vec((2, 2), vec![2.0, 0.0, 0.0, 3.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 2), vec![1.0, 0.5, 0.3, 2.0]).unwrap(); // Not symmetric
+
+        let x_tan = spd.project_tangent(&p, &x).unwrap();
+
+        // Check symmetry
+        for i in 0..2 {
+            for j in 0..2 {
+                assert_relative_eq!(x_tan[[i, j]], x_tan[[j, i]], epsilon = 1e-10);
+            }
+        }
     }
 }

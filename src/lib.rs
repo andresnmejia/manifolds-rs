@@ -43,16 +43,16 @@
 
 pub mod core;
 pub mod manifolds;
+pub mod algorithms;
 
 // Flat re-exports for convenience
-pub use core::{EmbeddedManifold, Error, Manifold, ProductManifold, Result, StatisticalManifold};
+pub use core::{EmbeddedManifold, Error, Manifold, ProductManifold, Result};
 
 pub use manifolds::{sphere, Euclidean, Stiefel, SPD};
 
 /// Convenience re-exports for common use cases
 pub mod prelude {
     pub use crate::{
-        sphere, EmbeddedManifold, Error, Euclidean, Manifold, ProductManifold, Result,
-        StatisticalManifold, SPD,
+        sphere, EmbeddedManifold, Error, Euclidean, Manifold, ProductManifold, Result, SPD,
     };
 }
