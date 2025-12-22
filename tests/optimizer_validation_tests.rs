@@ -1,7 +1,7 @@
 use approx::assert_relative_eq;
-use manifolds::algorithms::optimization::*;
-use manifolds::core::{EmbeddedManifold, Error, Manifold, Result};
-use manifolds::manifolds::{Euclidean, Sphere, Stiefel};
+use manifolds_rs::algorithms::optimization::*;
+use manifolds_rs::core::{EmbeddedManifold, Error, Manifold, Result};
+use manifolds_rs::manifolds::{Euclidean, Sphere, Stiefel};
 use ndarray::{arr1, arr2, Array1, Array2};
 use ndarray_linalg::Norm;
 

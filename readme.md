@@ -18,7 +18,7 @@ sudo pacman -S openblas
 **Then add to `Cargo.toml`:**
 ```toml
 [dependencies]
-manifolds-core = { version = "0.1", features = ["openblas-system"] }
+manifolds-rs = { version = "0.1", features = ["openblas-system"] }
 ```
 
 TODO:
