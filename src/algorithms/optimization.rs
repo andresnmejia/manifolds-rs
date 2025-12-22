@@ -952,23 +952,3 @@ impl RiemannianGradientDescent {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ndarray::arr2;
-
-    // Simple test objective for Euclidean space (treated as flat manifold)
-    struct QuadraticObjective {
-        target: Array2<f64>,
-    }
-
-    impl QuadraticObjective {
-        fn new(target: Array2<f64>) -> Self {
-            Self { target }
-        }
-    }
-
-    // We'd need a concrete manifold implementation to test this properly
-    // For now, these are just structure tests
-}

@@ -1,4 +1,4 @@
-use manifolds_core::prelude::*;
+use manifolds::prelude::*;
 use ndarray::Array2;
 
 fn main() {

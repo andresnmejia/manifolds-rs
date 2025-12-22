@@ -1,5 +1,5 @@
 [package]
-name = "manifolds-core"
+name = "manifolds"
 version = "0.1.0"
 edition = "2021"
 authors = ["Andres Mejia <andresnayeem@gmail.com>"]
