@@ -34,5 +34,8 @@ TODO:
 
 4. Optimization methods currently require presenting manifold as embedded submanifold of R^N.
 
+5. Move "retraction method from optimization.rs into manififold trait with default exp/proj.
+
+6. Build light python wrapper for library.
 
 *cheeky side note:* we could have implemented spheres as a special case of stiefel, but opted not to for both simplicity, but also for speed reasons (for example in choice of retraction, and later on for second order computations.)
