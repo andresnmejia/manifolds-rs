@@ -29,10 +29,11 @@ pub trait ObjectiveFunction<M: EmbeddedManifold> {
         ))
     }
 
-    /// Compute the Riemannian Hessian (projected appropriately)
-    /// This is more complex - see Absil et al. (2008) Section 5.5
+    ///Wrong as written! this is just the ambient hessian. Need something smarter.
+    /// UPDATE WHEN AFFINE CONNECTION IS POSSIBLE
     ///
-    /// For now, we'll use the Euclidean Hessian projected to tangent space
+    ///
+    ///
     fn riemannian_hessian(&self, manifold: &M, p: &M::Point) -> Result<Array2<f64>> {
         let h = self.hessian_ambient(manifold, p)?;
 
@@ -93,7 +94,7 @@ pub enum RetractionMethod {
 
 impl Default for RetractionMethod {
     fn default() -> Self {
-        // Projection is typically faster and works well in practice
+        // for now, exponential
         RetractionMethod::Projection
     }
 }
@@ -112,7 +113,7 @@ pub enum LineSearch {
         c1: f64,
     },
 }
-
+///Does nothing so far
 impl Default for LineSearch {
     fn default() -> Self {
         LineSearch::Backtracking {
@@ -124,6 +125,8 @@ impl Default for LineSearch {
 }
 
 /// Convergence criteria
+///
+
 #[derive(Debug, Clone)]
 pub struct Convergence {
     /// Maximum number of iterations
@@ -436,7 +439,6 @@ impl RiemannianGradientDescent {
     /// 3. Take step using configured retraction method
     /// 4. Update λ based on gain ratio
     ///
-    /// No reshaping needed - everything stays in R^d!
     pub fn minimize_lm<M, R>(
         &self,
         manifold: &M,

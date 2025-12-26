@@ -1,3 +1,13 @@
+// Integration tests for Riemannian optimization algorithms
+//
+// Tests cover:
+// - Euclidean space (flat manifold baseline)
+// - Sphere (curved manifold with simple constraints)
+// - Stiefel (matrix manifold with orthogonality constraints)
+// - Multiple optimization methods (GD, Newton, LM, Gauss-Newton)
+// - Different retraction methods (exponential vs projection)
+// - Convergence criteria and line search
+
 use approx::assert_relative_eq;
 use manifolds_rs::algorithms::optimization::*;
 use manifolds_rs::core::{EmbeddedManifold, Error, Manifold, Result};
@@ -103,14 +113,18 @@ struct SphericalDistance {
 
 impl ObjectiveFunction<Sphere> for SphericalDistance {
     fn eval(&self, manifold: &Sphere, p: &Array1<f64>) -> Result<f64> {
-        // Distance squared on sphere: d(p, target)^2
+        // Distance squared on sphere: (1/2) * d(p, target)^2
         let dist = manifold.distance(p, &self.target)?;
         Ok(0.5 * dist * dist)
     }
 
     fn gradient_ambient(&self, manifold: &Sphere, p: &Array1<f64>) -> Result<Array1<f64>> {
-        // Gradient of (1/2)d(p,q)^2 is the log map
-        manifold.log(p, &self.target)
+        // Gradient of (1/2)d(p,q)^2 is -log_p(q)
+        // The negative sign is crucial: gradient points away from minimum,
+        // so -log_p(target) points away from target, making gradient descent
+        // move toward it
+        let log_pq = manifold.log(p, &self.target)?;
+        Ok(&log_pq * (-1.0))
     }
 }
 
@@ -389,6 +403,7 @@ fn test_convergence_criteria() {
         .minimize(&manifold, &objective, p0.clone())
         .unwrap();
 
+    // Should converge due to gradient tolerance
     assert!(result.converged, "Should converge");
     assert!(
         result.message.contains("Gradient"),
@@ -396,9 +411,14 @@ fn test_convergence_criteria() {
         result.message
     );
     assert!(result.grad_norm < 1e-4, "Should meet gradient tolerance");
+    assert!(
+        result.iterations < 1000,
+        "Should converge before max iterations"
+    );
 
-    // Test that max iterations works
+    // Test that max iterations works (disable line search!)
     let optimizer_max = RiemannianGradientDescent::new()
+        .with_line_search(LineSearch::None) // Disable line search!
         .with_step_size(0.0001) // Tiny step
         .with_convergence(Convergence {
             max_iterations: 5, // Very few iterations
@@ -412,11 +432,10 @@ fn test_convergence_criteria() {
         .unwrap();
     assert!(
         !result_max.converged,
-        "Should not converge with max iterations, but converged = {}",
-        result_max.value
+        "Should not converge with max iterations, but got: converged={}, value={}, iterations={}",
+        result_max.converged, result_max.value, result_max.iterations
     );
-
-    assert!(result_max.iterations == 5, "Should hit max iterations");
+    assert_eq!(result_max.iterations, 5, "Should hit max iterations");
 }
 
 // =========================================================================
