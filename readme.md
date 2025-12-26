@@ -21,6 +21,7 @@ sudo pacman -S openblas
 manifolds-rs = { version = "0.1", features = ["openblas-system"] }
 ```
 
+**WARNING:** Only first descent is working "genuinely."  (second order) methods require an affine connection which is yet to be implemented.
 TODO:
 
 1. Implement Riemannian [Line Search Methods](https://assets.press.princeton.edu/chapters/absil/Absil_Chap4.pdf). Currently using static step size.
