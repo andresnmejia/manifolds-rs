@@ -1,6 +1,6 @@
-This is a Rust implementation of riemannian optimization. We wrote this with a few towards information geometry/statistical manifolds and using the information metric as a tool in regularization.
+This is a Rust library for riemannian optimization.It was written with a view towards information geometry/statistical manifolds.
 
-That being said, many of the methods (included the overall structure of the manifold trait) follow [manifold.jl](https://github.com/JuliaManifolds/Manifolds.jl) closely. In particular, their implementation of "manifolds/core."
+That being said, many of the methods (including the overall structure of the manifold trait) follow [manifold.jl](https://github.com/JuliaManifolds/Manifolds.jl) closely. In particular, their core manifold struct.
 
 **First, install OpenBLAS:**
 ```bash
@@ -23,7 +23,7 @@ sudo pacman -S openblas
 manifolds-rs = { version = "0.1", features = ["openblas-system"] }
 ```
 
-**WARNING:** Only first order descent is working "genuinely."  (second order) methods require an affine connection which is yet to be implemented.
+**WARNING:** Only first order descent is working "genuinely."  Second order methods require an affine connection which is yet to be implemented.
 TODO:
 
 1. Implement Riemannian [Line Search Methods](https://assets.press.princeton.edu/chapters/absil/Absil_Chap4.pdf). Currently using static step size.
