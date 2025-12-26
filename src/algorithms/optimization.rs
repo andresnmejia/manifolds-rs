@@ -9,19 +9,16 @@ pub trait ObjectiveFunction<M: EmbeddedManifold> {
     fn eval(&self, manifold: &M, p: &M::Point) -> Result<f64>;
 
     /// Compute the Euclidean gradient in ambient coordinates
-    /// Returns ∇f ∈ R^d where d = manifold.ambient_dim()
+    /// In R^d where d = manifold.ambient_dim()
     fn gradient_ambient(&self, manifold: &M, p: &M::Point) -> Result<Array1<f64>>;
 
     /// Compute the Riemannian gradient (projected to tangent space)
-    /// Returns grad f ∈ T_p M represented in ambient coordinates
+    /// Returns grad  in ambient coordinates
     fn riemannian_gradient(&self, manifold: &M, p: &M::Point) -> Result<Array1<f64>> {
         let grad_ambient = self.gradient_ambient(manifold, p)?;
         manifold.project_to_ambient_tangent(p, &grad_ambient)
     }
 
-    /// Compute the Euclidean Hessian in ambient coordinates (for Newton's method)
-    /// Returns ∇²f ∈ R^{d×d}
-    ///
     /// This is optional - only needed for Newton's method
     fn hessian_ambient(&self, manifold: &M, p: &M::Point) -> Result<Array2<f64>> {
         Err(Error::InvalidParameter(
@@ -37,8 +34,7 @@ pub trait ObjectiveFunction<M: EmbeddedManifold> {
     fn riemannian_hessian(&self, manifold: &M, p: &M::Point) -> Result<Array2<f64>> {
         let h = self.hessian_ambient(manifold, p)?;
 
-        // Project rows and columns to tangent space
-        // This is a simplification - full Riemannian Hessian is more involved
+        // full Riemannian Hessian is more involved
         Ok(h)
     }
 }
@@ -49,9 +45,6 @@ pub trait ResidualFunction<M: EmbeddedManifold> {
     /// Evaluate residual vector r(p) ∈ R^m
     fn residual(&self, manifold: &M, p: &M::Point) -> Result<Array1<f64>>;
 
-    /// Compute the Jacobian J(p) ∈ R^{m×d}
-    /// where d = manifold.ambient_dim()
-    /// J_ij = ∂r_i/∂x_j where x ∈ R^d are ambient coordinates
     fn jacobian(&self, manifold: &M, p: &M::Point) -> Result<Array2<f64>>;
 
     /// Number of residuals

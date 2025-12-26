@@ -2,9 +2,7 @@ use ndarray::Array1;
 use crate::core::{Manifold, Result};
 
 /// Product of two manifolds M1 × M2
-/// 
-/// Used to combine different parameter spaces, e.g.:
-/// - R^+ × R^+ × R^+ × [-1,1] × R^+ for Heston parameters
+
 pub struct ProductManifold<M1: Manifold, M2: Manifold> {
     pub m1: M1,
     pub m2: M2,
